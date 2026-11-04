@@ -1347,7 +1347,10 @@ const load=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=s});
   BI=await load(SRC.btn);for(const k in SRC.cf)CFI[k]=await load(SRC.cf[k]);buildCF();for(const k in SRC.eq)EQI[k]=await load(SRC.eq[k]);for(const k in SRC.sp)SPI[k]=await load(SRC.sp[k]);for(const k in SRC.th)THI[k]=swapRB(await load(SRC.th[k]));CHI=await load(SRC.chest);for(const k in MENUSRC)MBI[k]=await load(MENUSRC[k]);buildBG();buildMenuBG();state='menu'})();
 
 </script><style>
-#pv,#pv *,#pv-quit,#pv-toast{box-sizing:border-box;font-family:"Press Start 2P",monospace}
+#pv,#pv *,#pv-quit,#pv-acc,#pv-toast{box-sizing:border-box;font-family:"Press Start 2P",monospace}
+#pv-acc{position:fixed;z-index:40;left:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));display:none;background:rgba(14,10,46,.88);border:2px solid #5a4fcf;color:#e8e0ff;padding:7px 9px;font-size:7px}
+#pv-acc.on{display:block}
+#pv-acc button{margin-left:6px;background:#a82a3a;color:#fff;border:0;padding:5px 6px;font-size:6px;cursor:pointer;font-family:inherit}
 #pv{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(7,6,15,.86);color:#e8e0ff;
   touch-action:manipulation;user-select:text;-webkit-user-select:text;padding:8px;overflow:auto}
 #pv.on{display:flex}
@@ -1410,11 +1413,24 @@ const load=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=s});
 </style>
 
 <div id="pv">
+  <!-- COMPTE -->
+  <div class="pv-box" id="pv-login">
+    <h1>AETHERGARD</h1>
+    <p class="pv-sub">Connecte-toi pour sauvegarder ta progression<br>(pièces, héros, monstres, sorts, coffres).</p>
+    <div class="pv-row"><input id="pv-user" class="pv-in" maxlength="12" placeholder="PSEUDO" autocomplete="username" spellcheck="false"></div>
+    <div class="pv-row"><input id="pv-pass" class="pv-in" type="password" maxlength="64" placeholder="MOT DE PASSE" autocomplete="current-password" style="text-transform:none"></div>
+    <div class="pv-row"><button class="pvb green" id="pv-signin">SE CONNECTER</button><button class="pvb gold" id="pv-signup">CRÉER LE COMPTE</button></div>
+    <label class="pv-link"><input type="checkbox" id="pv-remember" checked>RESTER CONNECTÉ SUR CET APPAREIL</label>
+    <div id="pv-lmsg" style="min-height:14px;font-size:8px;line-height:1.7;color:#ffb347;margin:10px 0 0"></div>
+    <div class="pv-row" style="margin-top:12px"><button class="pvb ghost sm" id="pv-guestplay">JOUER SANS COMPTE (RIEN N'EST SAUVEGARDÉ)</button></div>
+  </div>
+
   <!-- ACCUEIL -->
   <div class="pv-box" id="pv-home">
     <h1>DUEL EN LIGNE</h1>
     <p class="pv-sub">1 CONTRE 1 &mdash; ROYAUME OU AETHER<br>Crée une room, envoie le code à ton ami, choisis ton camp et ton équipe.</p>
-    <div class="pv-row"><input id="pv-name" class="pv-in" maxlength="12" placeholder="TON PSEUDO" autocomplete="off" spellcheck="false"></div>
+    <div class="pv-row" id="pv-namerow"><input id="pv-name" class="pv-in" maxlength="12" placeholder="TON PSEUDO" autocomplete="off" spellcheck="false"></div>
+    <p class="pv-sub" id="pv-whoami" style="display:none"></p>
     <button class="pvb big gold" id="pv-create">CRÉER UNE ROOM</button>
     <h2>&mdash; OU &mdash;</h2>
     <div class="pv-row">
@@ -1456,12 +1472,15 @@ const load=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=s});
   <div class="pv-box" id="pv-end">
     <h1 id="pv-end-title">VICTOIRE !</h1>
     <p id="pv-end-sub"></p>
+    <p id="pv-end-reward" style="font-size:11px;line-height:1.8;color:#ffe27a;margin:0 0 14px;display:none"></p>
     <div class="pv-row">
+      <button class="pvb gold" id="pv-end-chest" style="display:none">OUVRIR LE COFFRE</button>
       <button class="pvb green" id="pv-end-room">REVANCHE / SALON</button>
       <button class="pvb red" id="pv-end-quit">QUITTER</button>
     </div>
   </div>
 </div>
+<div id="pv-acc"><span id="pv-accname"></span> <button id="pv-logout">DÉCONNEXION</button></div>
 <button id="pv-quit">&#10005; ABANDONNER</button>
 <div id="pv-toast"></div>
 
@@ -1521,11 +1540,11 @@ function toast(m,ms){const t=$('pv-toast');t.textContent=m;t.classList.add('on')
 function setMsg(m){$('pv-msg').textContent=m||''}
 function showPanel(id){ // id: home|room|end|null
   const ov=$('pv');
-  for(const p of['home','room','end'])$('pv-'+p).classList.toggle('on',p==id);
+  for(const p of['login','home','room','end'])$('pv-'+p).classList.toggle('on',p==id);
   ov.classList.toggle('on',!!id);ov.classList.toggle('lite',id=='end');
   P.overlayOpen=!!id;
 }
-function readName(){let n=($('pv-name').value||'').trim().replace(/[^\w\- ÀÉÈÊéèêàùçÇ]/g,'').slice(0,12);if(!n)n='Joueur'+(100+Math.random()*900|0);try{localStorage.setItem('aeg_pvname',n)}catch(e){}$('pv-name').value=n;return n}
+function readName(){if(P.acc)return P.acc.name;let n=($('pv-name').value||'').trim().replace(/[^\w\- ÀÉÈÊéèêàùçÇ]/g,'').slice(0,12);if(!n)n='Joueur'+(100+Math.random()*900|0);try{localStorage.setItem('aeg_pvname',n)}catch(e){}$('pv-name').value=n;return n}
 const myCamp=()=>P.role=='host'?(P.V&&P.V.hc):(P.V&&P.V.gc);
 const oppCamp=()=>P.role=='host'?(P.V&&P.V.gc):(P.V&&P.V.hc);
 
@@ -1686,7 +1705,7 @@ function lbClaim(role,c){
   if(role=='host'){if(L.hc!==c){L.hc=c;L.ht=null}}else{if(L.gc!==c){L.gc=c;L.gt=null}}
   lbPush();
 }
-function validTeam(c,t){if(!Array.isArray(t)||t.length!=5)return false;const n=c=='a'?AU.length:U.length;return t.every((v,i)=>Number.isInteger(v)&&v>=0&&v<n&&t.indexOf(v)==i)}
+function validTeam(c,t){if(!Array.isArray(t)||t.length<1||t.length>5)return false;const n=c=='a'?AU.length:U.length;return t.every((v,i)=>Number.isInteger(v)&&v>=0&&v<n&&t.indexOf(v)==i)}
 function lbTeam(role,t){
   const L=P.L;if(L.ph!='room')return;const c=role=='host'?L.hc:L.gc;if(!c||!validTeam(c,t))return;
   if(role=='host')L.ht=t.slice();else L.gt=t.slice();
@@ -1711,7 +1730,7 @@ function startMatchHost(){
 function pickTeam(){
   const c=myCamp();if(!c)return;const host=P.role=='host';
   if(host?P.V.hr:P.V.gr){host?lbUnready('host'):NET.send({t:'unready'})}
-  unlockAll();side=c;P.inLobby=true;showPanel(null);
+  keep();side=c;P.inLobby=true;showPanel(null);
   openTeam(()=>{
     const t=(c=='a'?teamA:teamK).slice();showPanel('room');
     if(host)lbTeam('host',t);else NET.send({t:'team',team:t});
@@ -1719,11 +1738,8 @@ function pickTeam(){
 }
 P.teamCancelled=()=>{if(P.phase=='room')showPanel('room')};
 
-function unlockAll(){
-  if(!P.saved)P.saved={heroOwned:Object.assign({},heroOwned),aeOwned:Object.assign({},aeOwned),spOwned:Object.assign({},spOwned),eqk:Object.assign({},eqOwn.k),eqa:Object.assign({},eqOwn.a),
-    ARL,ARsv,teamK:teamK.slice(),teamA:teamA.slice(),side,mode,wave};
-  U.forEach(u=>heroOwned[u.id]=1);AU.forEach(u=>aeOwned[u.t]=1);
-  spOwned={0:1,1:1};eqOwn.k={0:1,1:1};eqOwn.a={0:1,1:1};
+function keep(){
+  if(!P.saved)P.saved={ARL,ARsv,teamK:teamK.slice(),teamA:teamA.slice(),side,mode,wave};
 }
 
 /* ---------------------------------------------------------------- MESSAGES */
@@ -1771,7 +1787,7 @@ function begin(teams){
   if(!host)P.oppName=P.V.hn;else P.oppName=P.L.gn||'ADVERSAIRE';
   P.phase='play';P.on=PVP.on=true;P.inLobby=false;P.winner=null;P.endT=0;P.gotSnap=host;P.lastSeq=0;P.seq=0;P.snapAcc=0;P.shMax=P.flMax=0;
   P.gA.clear();P.gZ.clear();P.nid=0;P.ev={ps:[],fx:[],th:[],spl:[],au:[]};
-  unlockAll();teamK=teams.k.slice();teamA=teams.a.slice();
+  keep();P.t0=performance.now();P.reward=null;teamK=teams.k.slice();teamA=teams.a.slice();
   side=P.me;mode='pvp';state='play';paused=false;shopOpen=false;teamOpen=false;chestOpen=false;cardZoom=null;pcf=null;
   spd=1;stop=0;overT=0;wave=1;zoom=zoomT=1;drag=null;cDrag=null;
   A=[];zs=[];EW=[];ps=[];fx=[];bl=[];th=[];au=[];spl=[];sev=[];cn=[];flash=0;shake=0;lvSeen=new Set();winGain=0;
@@ -1956,6 +1972,100 @@ P.hud=function(){
   drawCards();
 };
 
+
+/* ---------------------------------------------------------------- COMPTES / SAUVEGARDE */
+const LS=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const LSset=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+function snapshot(){return{v:1,best,coins,ARL:P.saved?P.saved.ARL:ARL,heroOwned,lvDone,kKeys,acoins,aeOwned,OBL,AUP,spOwned,eqOwn,lvDoneA,abest,awv}}
+function applySave(s){
+  if(!s)return;
+  const n=v=>+v||0,o=v=>(v&&typeof v=='object')?v:{};
+  best=n(s.best);coins=n(s.coins);ARL=clamp(n(s.ARL)||1,1,ARMAX)|0;heroOwned=o(s.heroOwned);lvDone=o(s.lvDone);kKeys=n(s.kKeys);
+  acoins=n(s.acoins);aeOwned=o(s.aeOwned);OBL=Math.max(1,n(s.OBL));AUP=Math.max(1,n(s.AUP));spOwned=o(s.spOwned);
+  eqOwn={k:o(s.eqOwn&&s.eqOwn.k),a:o(s.eqOwn&&s.eqOwn.a)};lvDoneA=o(s.lvDoneA);abest=n(s.abest);awv=Math.max(1,n(s.awv));
+}
+const ACC={last:'',busy:false,fails:0};
+const lkey=()=>'aeg_local_'+P.acc.name.toLowerCase();
+async function api(path,body){
+  const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),keepalive:true});
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok)throw Object.assign(new Error(j.err||('Erreur '+r.status)),{status:r.status});
+  return j;
+}
+function lmsg(m){$('pv-lmsg').textContent=m||''}
+async function authenticate(kind){
+  const name=$('pv-user').value.trim(),pass=$('pv-pass').value;
+  if(!name||!pass){lmsg('Entre un pseudo et un mot de passe.');return}
+  lmsg('Connexion…');
+  try{
+    const j=await api(kind=='up'?'/api/register':'/api/login',{name,pass});
+    P.acc={name:j.name,token:j.token,pass};
+    /* le plus récent gagne : copie locale (appareil) ou copie du serveur */
+    let local=null;try{local=JSON.parse(LS(lkey())||'null')}catch(e){}
+    const srv=j.save&&j.save.s?j.save:null;
+    const useLocal=local&&local.s&&(!srv||(local.ts||0)>(srv.ts||0));
+    const pick=useLocal?local:srv;
+    if(pick)applySave(pick.s);
+    ACC.last=JSON.stringify(snapshot());ACC.ts=pick?pick.ts||0:0;
+    if(useLocal||(!srv&&j.created)){ACC.last='';}   /* force l'envoi vers le serveur */
+    if($('pv-remember').checked)LSset('aeg_login',JSON.stringify({name,pass}));else LSset('aeg_login','');
+    accUI();showPanel(null);toast(j.created?'Compte créé ! Bienvenue '+j.name:'Bienvenue '+j.name+' !');
+    autosave(true);
+  }catch(e){
+    if(e.status)lmsg(e.message);
+    else lmsg('Serveur de comptes injoignable. (Il se réveille peut-être : réessaie dans 30 s.)');
+  }
+}
+async function autosave(force){
+  if(!P.acc||ACC.busy)return;
+  const cur=JSON.stringify(snapshot());
+  if(!force&&cur==ACC.last)return;
+  if(cur!=ACC.last)ACC.ts=Date.now();
+  const rec={s:JSON.parse(cur),ts:ACC.ts||Date.now()};
+  LSset(lkey(),JSON.stringify(rec));
+  ACC.busy=true;
+  try{
+    try{await api('/api/save',{token:P.acc.token,save:rec})}
+    catch(e){ if(e.status==401){const j=await api('/api/login',{name:P.acc.name,pass:P.acc.pass});P.acc.token=j.token;await api('/api/save',{token:P.acc.token,save:rec})}else throw e }
+    ACC.last=cur;ACC.fails=0;
+  }catch(e){ACC.fails++;if(ACC.fails==3)toast('Sauvegarde en ligne impossible pour l\'instant (copie locale conservée).')}
+  ACC.busy=false;
+}
+function accUI(){
+  const on=!!P.acc;
+  $('pv-namerow').style.display=on?'none':'';
+  const w=$('pv-whoami');w.style.display=on?'':'none';w.textContent=on?'Joueur : '+P.acc.name:'';
+}
+function logout(){LSset('aeg_login','');location.reload()}
+setInterval(()=>{autosave(false);
+  $('pv-acc').classList.toggle('on',!!P.acc&&state=='menu'&&!P.overlayOpen&&!teamOpen&&!shopOpen&&!chestOpen);
+  if($('pv-acc').classList.contains('on'))$('pv-accname').textContent='COMPTE : '+P.acc.name;
+  if(P.waitChest&&!chestOpen){P.waitChest=false;showPanel('room')}
+},2500);
+window.addEventListener('pagehide',()=>{if(P.acc){const cur=JSON.stringify(snapshot());if(cur!=ACC.last){ACC.ts=Date.now();const rec={s:JSON.parse(cur),ts:ACC.ts};LSset(lkey(),JSON.stringify(rec));try{fetch('/api/save',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({token:P.acc.token,save:rec})})}catch(e){}}}});
+/* écran de connexion au démarrage du menu */
+let loginShown=false;
+const loginIv=setInterval(()=>{
+  if(state!='menu'||loginShown)return;loginShown=true;clearInterval(loginIv);
+  let saved=null;try{saved=JSON.parse(LS('aeg_login')||'null')}catch(e){}
+  if(saved&&saved.name){$('pv-user').value=saved.name;$('pv-pass').value=saved.pass;$('pv-remember').checked=true;showPanel('login');authenticate('in');return}
+  showPanel('login');
+},300);
+
+/* ---------------------------------------------------------------- RÉCOMPENSES */
+const pickW=(a)=>{let t=a.reduce((s,x)=>s+x[1],0),r=Math.random()*t;for(const x of a){if((r-=x[1])<0)return x[0]}return a[0][0]};
+function rollReward(){
+  if(Math.random()<.65){const v=pickW([[40,35],[60,30],[80,20],[120,10],[200,5]]);if(P.me=='a')acoins+=v;else coins+=v;return{t:'coin',v,sd:P.me}}
+  return{t:'chest',k:pickW([[0,65],[1,28],[2,7]])};
+}
+function openRewardChest(){
+  const R=P.reward;if(!R||R.t!='chest'||R.opened)return;R.opened=true;
+  backToRoom(true);
+  const c=CHESTS[R.k],it=chestRoll(c);
+  chestOpen=true;chMsgT=0;chAnim={k:R.k,it,t0:T,lt:T,ps:[],burst:false,flash:0,snd:0,doneT:1.9+.25+(it.length-1)*.55+.5};
+  P.waitChest=P.phase!='off';autosave(true);
+}
+
 /* ---------------------------------------------------------------- FIN / SORTIE */
 function finish(w,msg,fromHost){
   if(P.phase=='end')return;
@@ -1965,24 +2075,30 @@ function finish(w,msg,fromHost){
   const won=w&&w==P.me,t=$('pv-end-title');
   t.textContent=!w?'PARTIE INTERROMPUE':won?'VICTOIRE !':'DÉFAITE';t.className=!w?'':won?'win':'lose';
   $('pv-end-sub').textContent=msg||(won?(P.me=='k'?'L\'obélisque d\'Aether est détruit !':'La charrette du Royaume est détruite !'):(P.me=='k'?'Ta charrette a été détruite.':'Ton obélisque a été détruit.'));
+  const rw=$('pv-end-reward'),cb=$('pv-end-chest');rw.style.display='none';cb.style.display='none';
+  if(won&&(performance.now()-(P.t0||0))>20000){
+    P.reward=rollReward();rw.style.display='block';
+    if(P.reward.t=='coin')rw.textContent='RÉCOMPENSE : +'+P.reward.v+' PIÈCES'+(P.reward.sd=='a'?' D\'AETHER':'');
+    else{rw.textContent='RÉCOMPENSE : '+CHESTS[P.reward.k].n+' !';cb.style.display=''}
+    autosave(true);
+  }
   setTimeout(()=>{if(P.phase=='end')showPanel('end')},w?900:0);
 }
-function backToRoom(){
+function backToRoom(hold){
   PVP.on=P.on=false;state='menu';scr=0;A=[];zs=[];EW=[];bl=[];ps=[];fx=[];th=[];au=[];spl=[];sev=[];castle={hp:1,mhp:1,fl:0};mode='level';
   P.winner=null;$('pv-quit').classList.remove('on');
   if(!NET.open&&P.role=='host'){/* adversaire parti */}
   if(P.role=='host'){const L=P.L;L.ph='room';L.ht=null;L.gt=null;L.hc=null;L.gc=null;L.cd=0;P.phase='room';P.inLobby=true;lbPush()}
   else{P.phase='room';P.inLobby=true;P.V=Object.assign({},P.V,{hr:false,gr:false,hc:null,gc:null});renderRoom()}
   if(!NET.open){leave();return}
-  showPanel('room');
+  if(hold)showPanel(null);else showPanel('room');
 }
 function leave(){
-  const was=P.phase;
+  const was=P.phase;P.waitChest=false;
   try{if(NET.open)NET.send({t:'bye'})}catch(e){}
   clearInterval(cdTimer);NET.close();
   PVP.on=P.on=false;P.inLobby=false;P.phase='off';P.role=null;P.L=null;P.V=null;P.me=null;
-  if(P.saved){const s=P.saved;P.saved=null;heroOwned=s.heroOwned;Object.keys(aeOwned).forEach(k=>delete aeOwned[k]);Object.assign(aeOwned,s.aeOwned);spOwned=s.spOwned;eqOwn.k=s.eqk;eqOwn.a=s.eqa;
-    ARL=s.ARL;ARsv=s.ARsv;teamK=s.teamK;teamA=s.teamA;side=s.side;wave=s.wave}
+  if(P.saved){const s=P.saved;P.saved=null;ARL=s.ARL;ARsv=s.ARsv;teamK=s.teamK;teamA=s.teamA;side=s.side;wave=s.wave}
   mode='level';state='menu';scr=0;paused=false;teamOpen=false;shopOpen=false;eqSel=spSel=-1;
   A=[];zs=[];EW=[];bl=[];ps=[];fx=[];th=[];au=[];spl=[];sev=[];castle={hp:1,mhp:1,fl:0};obH=obM=1;SCD=[0,0];CD=[];ECD=[0,0];mana=0;
   showPanel(null);$('pv-quit').classList.remove('on');
@@ -2005,14 +2121,20 @@ function init(){
   for(const c of['k','a'])click('pv-camp-'+c,()=>{if(P.role=='host')lbClaim('host',c);else NET.send({t:'claim',c})});
   click('pv-team',pickTeam);
   click('pv-leave',leave);
-  click('pv-end-room',backToRoom);
+  click('pv-end-room',()=>backToRoom());
+  click('pv-end-chest',openRewardChest);
+  click('pv-signin',()=>authenticate('in'));
+  click('pv-signup',()=>authenticate('up'));
+  click('pv-guestplay',()=>{showPanel(null)});
+  click('pv-logout',logout);
+
   click('pv-end-quit',leave);
   click('pv-quit',()=>{if(P.phase!='play'||confirm('Abandonner le duel ? (c\'est une défaite)')){
     if(P.phase=='play'){if(P.role=='host'){finish(P.me=='k'?'a':'k','Tu as abandonné.')}else{NET.send({t:'bye'});finish(P.me=='k'?'a':'k','Tu as abandonné.');setTimeout(leave,50)}}else leave()}});
   /* le clavier ne doit pas atteindre le menu du jeu quand le salon est ouvert */
   for(const ev of['keydown','keyup'])window.addEventListener(ev,e=>{
     if(!P.overlayOpen)return;
-    if(ev=='keydown'&&e.key=='Enter'&&e.target&&e.target.id=='pv-code'){joinRoom(e.target.value)}
+    if(ev=='keydown'&&e.key=='Enter'&&e.target){const id=e.target.id;if(id=='pv-code')joinRoom(e.target.value);else if(id=='pv-pass'||id=='pv-user')authenticate('in')}
     e.stopPropagation()},true);
   const h=location.hash.match(/room=([A-Za-z0-9]+)/);
   if(h){P.pendingJoin=h[1].toUpperCase();if(/local=1/.test(location.hash))P.pendingLocal=true}
